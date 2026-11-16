@@ -1,7 +1,10 @@
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import { DEAL_ENDS, useCountdown } from '../components/Countdown.jsx';
-import useSmoothAnchors from '../components/useSmoothAnchors.js';
+import { SmoothAnchors } from '../components/useSmoothAnchors.js';
+import { useAuth, PLAN_NAMES, clipsLeft } from '../components/AuthContext.jsx';
+import useSpots from '../components/useSpots.js';
 import '../styles/pricing.css';
 
 const PLANS = [
@@ -11,6 +14,7 @@ const PLANS = [
     launch: 15,
     clips: 50,
     who: 'Try it on your streams',
+    checkout: 'https://buy.polar.sh/polar_cl_skDmEUMEYsVHbUBnFFDmeIvml0sTtF6HHQXqY4KKx0V',
     features: ['50 clips', 'Captions, hook and title on every clip', 'Download and post yourself'],
   },
   {
@@ -19,6 +23,7 @@ const PLANS = [
     launch: 35,
     clips: 150,
     who: 'Post every day',
+    checkout: 'https://buy.polar.sh/polar_cl_Qa5zkDY2XU18Dq8svVMbEaryRM1eCBQDguumf2EsgEd',
     features: ['150 clips', 'Everything in Starter', 'HD 1080p clips'],
   },
   {
@@ -27,6 +32,7 @@ const PLANS = [
     launch: 69,
     clips: 500,
     who: 'Streamers and clippers going all in',
+    checkout: 'https://buy.polar.sh/polar_cl_h7ZpBiNtiWdV7o2rtsNi7TF0ad6PWmnHjlh3T2iVleY',
     badge: 'Best value',
     features: ['500 clips', 'Everything in Pro', 'Auto-post to YouTube Shorts', 'Paste many links at once'],
   },
@@ -36,7 +42,8 @@ const FAQ = [
   ['Is this a subscription?', 'No. You pay once and get your clips. Nothing renews, nothing to cancel.'],
   ['What happens after the launch deal?', 'The launch price ends Sunday 22 November, 11:59 PM PT. After that the plans go back to their normal price.'],
   ['What counts as a clip?', 'One finished vertical clip, ready to post. We make about 6 to 10 clips from each stream, and a stream can be up to 4 hours long.'],
-  ['Can I get a refund?', 'Yes. Within 48 hours, if you have used fewer than 10 clips, just ask and we refund you.'],
+  ['When can I start clipping?', 'Accounts open on 19 November, when GTA 6 drops. If you buy before that, your clips are waiting for you and we email you the moment it opens.'],
+  ['Can I get a refund?', 'Yes. Within 48 hours of your pre-order (or, after launch, if you have used fewer than 10 clips), just ask and we refund you.'],
 ];
 
 const Arrow = () => (
@@ -74,13 +81,54 @@ function DealTimer() {
   );
 }
 
-function PlanCard({ plan, dealOn }) {
+function ThanksBanner({ plan }) {
+  return (
+    <div className="pr-thanks" role="status">
+      <strong>Payment received. Thank you!</strong>
+      <p>Your {plan ? plan[0].toUpperCase() + plan.slice(1) : ''} clips are reserved. We'll email you the moment your account opens on 19 November, when GTA 6 drops. Your receipt is in your inbox. Sign in with Google using the same email to see your plan.</p>
+    </div>
+  );
+}
+
+// Signed in: pre-fill the checkout with the Google email, so the purchase lands on this account.
+function checkoutUrl(plan, email) {
+  if (!email) return plan.checkout;
+  const u = new URL(plan.checkout);
+  u.searchParams.set('customer_email', email);
+  return u.toString();
+}
+
+// Pre-order button: you must be signed in first (so the order lands on your account).
+// Signed in: remember which plan you picked, then open Polar checkout with your email filled in.
+// Shown right after "Join the waitlist" + Google sign-in (step 2 of 2).
+function StepBanner({ name }) {
+  const spots = useSpots();
+  return (
+    <div className="pr-step" role="status">
+      <div className="pr-step-top">
+        <span className="pr-step-pill">Step 2 of 2</span>
+        {spots && <span className="pr-step-spots"><b>{spots.left}</b> of 100 early-access spots left</span>}
+      </div>
+      <strong>{name ? `You're signed in, ${name.split(' ')[0]}.` : "You're signed in."} Pre-order a plan to lock your spot.</strong>
+      <p>Pay the 40% launch price today. Your clips are ready the moment accounts open on 19 November. 48-hour refund if you change your mind.</p>
+    </div>
+  );
+}
+
+function PlanCard({ plan, dealOn, email, current, auth }) {
   const price = dealOn ? plan.launch : plan.normal;
+  const go = async (e) => {
+    e.preventDefault();
+    if (!auth?.user) { auth?.signIn(); return; }
+    const url = checkoutUrl(plan, email);
+    try { await Promise.race([auth.savePlanChoice(plan.name.toLowerCase()), new Promise((r) => setTimeout(r, 600))]); } catch { /* checkout matters more */ }
+    window.location.href = url;
+  };
   return (
     <article className={`pr-card${plan.badge ? ' featured' : ''}`}>
       <div className="pr-card-top">
         <h2 className="pr-name">{plan.name}</h2>
-        {plan.badge && <span className="pr-badge">{plan.badge}</span>}
+        {current ? <span className="pr-badge">Your plan</span> : plan.badge && <span className="pr-badge">{plan.badge}</span>}
       </div>
       <p className="pr-who">{plan.who}</p>
       <div className="pr-price">
@@ -91,10 +139,11 @@ function PlanCard({ plan, dealOn }) {
       <ul className="pr-features">
         {plan.features.map((f) => <li key={f}><Check />{f}</li>)}
       </ul>
-      <a href="#waitlist" className={`button js-to-waitlist pr-cta${plan.badge ? '' : ' secondary'}`}>
+      {/* Polar checkout. The launch discount is attached to the link and stops applying by itself after the deadline. */}
+      <a href={checkoutUrl(plan, email)} onClick={go} className={`button pr-cta${plan.badge ? '' : ' secondary'}`}>
         <div className="button-text-holder">
-          <div className="button-text">{dealOn ? 'Lock launch price' : 'Join the waitlist'}</div>
-          <div className="button-text">{dealOn ? 'Lock launch price' : 'Join the waitlist'}</div>
+          <div className="button-text">Pre-order {plan.name} · ${price}</div>
+          <div className="button-text">Pre-order {plan.name} · ${price}</div>
         </div>
         <Arrow />
       </a>
@@ -103,35 +152,54 @@ function PlanCard({ plan, dealOn }) {
 }
 
 export default function Pricing() {
-  useSmoothAnchors();
   const dealOn = !useCountdown(DEAL_ENDS).over;
+  const [params] = useSearchParams();
+  const paid = params.get('checkout') === 'success';
+  const auth = useAuth();
+  const email = auth?.user?.email;
+  const myPlan = auth?.profile?.plan;
+  const step = params.get('step') === 'plan' && !!email;
+  const firstName = auth?.user?.user_metadata?.full_name || auth?.user?.user_metadata?.name;
 
   return (
     <div className="pricing-page">
+      <SmoothAnchors />
       <Navbar base="/" solid />
 
       <main id="top">
         <section className="section pr-hero">
           <div className="container">
+            {paid && <ThanksBanner plan={params.get('plan')} />}
+            {step && !paid && <StepBanner name={firstName} />}
             <DealTimer />
             <div className="pr-heading">
               <div className="paragraph-title">Pricing</div>
               <h1>Pay once. Get your clips.</h1>
               <p className="pr-lead">No subscription. Pick how many clips you want, and keep posting all launch season.</p>
+              <p className="pr-note">Pre-order now: pay the launch price today, start clipping when accounts open on 19 November.</p>
             </div>
 
+            {email && (
+              <p className="pr-signed">
+                Signed in as <b>{email}</b>{auth.profile ? <> · {PLAN_NAMES[auth.profile.plan]} · {clipsLeft(auth.profile)} clips</> : null}. Checkout will use this email.
+              </p>
+            )}
             <div className="pr-grid">
-              {PLANS.map((p) => <PlanCard key={p.name} plan={p} dealOn={dealOn} />)}
+              {PLANS.map((p) => <PlanCard key={p.name} plan={p} dealOn={dealOn} email={email} current={myPlan === p.name.toLowerCase()} auth={auth} />)}
             </div>
 
             <div className="pr-trial">
               <div>
                 <div className="small-text">Free trial</div>
-                <p>3 clips from one stream, with a small watermark. See your own moments before you pay.</p>
+                {email
+                  ? <p>You're on the waitlist with 3 free clips (small watermark). Pre-order above to lock the launch price before it ends.</p>
+                  : <p>3 clips from one stream, with a small watermark. See your own moments before you pay.</p>}
               </div>
-              <a href="#waitlist" className="button secondary js-to-waitlist">
-                <div className="button-text-holder"><div className="button-text">Try it free</div><div className="button-text">Try it free</div></div>
-              </a>
+              {!email && (
+                <a href="#waitlist" className="button secondary js-to-waitlist">
+                  <div className="button-text-holder"><div className="button-text">Join the waitlist</div><div className="button-text">Join the waitlist</div></div>
+                </a>
+              )}
             </div>
 
             <ul className="pr-all">

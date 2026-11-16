@@ -55,3 +55,6 @@ Vercel: import the repo, set **Root Directory** to `frontend`. `vercel.json` han
 - [docs/DEPLOY.md](docs/DEPLOY.md) — server deployment (PeakCut's guide)
 - [docs/PEAKCUT_README.md](docs/PEAKCUT_README.md) — original PeakCut readme
 - [docs/FEATURES.md](docs/FEATURES.md) — what the base has, what we keep, hide, remove and add
+- [docs/SETUP.md](docs/SETUP.md) — where everything lives, Vercel variables, dashboard steps, server commands
+- [docs/POLAR.md](docs/POLAR.md) — our Polar products, discounts and checkout links
+- [docs/polar-api-reference.md](docs/polar-api-reference.md) — Polar API notes (auth, SDK, pagination, rate limits)

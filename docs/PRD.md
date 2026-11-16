@@ -135,7 +135,7 @@ Sold by clips, not stream-hours: buyers understand "50 clips" at a glance.
   price really applies. The discount must be real, so no extending it quietly; a later sale is a new, named sale.
 - Cost guard: one stream is at most 4 hours; about 6–10 clips are made per stream.
 - Refund: within 48 h and only if fewer than 10 clips used.
-- Buy buttons go to the waitlist until Polar checkout is wired.
+- Buy buttons open Polar checkout links with the launch discount pre-applied (IDs in docs/POLAR.md).
 - Prices can change at the Day 7 checkpoint.
 - Lives on its own page: `frontend/src/pages/Pricing.jsx` (`/pricing`), with the deal countdown at the top.
 

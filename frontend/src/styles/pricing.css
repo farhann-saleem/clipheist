@@ -18,6 +18,10 @@
 .pr-heading h1{ font-size:var(--h1); margin:12px 0 16px; }
 .pr-lead{ font-size:var(--text-l); color:#141414; margin:0; }
 
+.pr-note{ margin:14px 0 0; font-size:var(--text-s); font-weight:500; }
+.pr-thanks{ background:var(--accent); border:1px solid var(--ink); border-radius:18px; padding:18px 24px; margin-bottom:16px; }
+.pr-thanks p{ margin:6px 0 0; }
+
 /* Plans */
 .pr-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; align-items:stretch; }
 .pr-card{ border:1px solid var(--border); border-radius:18px; padding:28px; display:flex; flex-direction:column; gap:18px; background:#fff; transition:transform .45s cubic-bezier(.65,0,.35,1), border-color .35s; }
@@ -50,7 +54,7 @@
 /* FAQ */
 .pr-faq{ padding-bottom:var(--section); }
 .pr-faq-title{ margin-bottom:32px; }
-.pr-faq-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+.pr-faq-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; }
 
 @media (max-width:991px){
   .pr-grid{ grid-template-columns:1fr; max-width:520px; margin:0 auto; }

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import LaunchBar from './LaunchBar.jsx';
+import AccountMenu from './AccountMenu.jsx';
 
 // Top navigation. `base` is '' on the landing page (links scroll in place) and '/' on other pages
 // (links go back to the landing section). `solid` gives the bar a white background straight away.
@@ -16,6 +18,7 @@ export default function Navbar({ base = '', solid = false }) {
 
   return (
     <div className="fixed">
+      <LaunchBar />
       <header role="banner" className="navbar" style={solid ? { background: '#fff' } : undefined}>
         <div className="container">
           <div className="navbar-holder">
@@ -35,7 +38,7 @@ export default function Navbar({ base = '', solid = false }) {
                 <div className="nav-link-wrapper"><a href={href('#how')} className="nav-link">How it works</a><div className="nav-line"></div></div>
                 <div className="nav-link-wrapper"><Link to="/pricing" className="nav-link">Pricing</Link><div className="nav-line"></div></div>
                 <div className="nav-link-wrapper"><a href={href('#faq')} className="nav-link">FAQ</a><div className="nav-line"></div></div>
-                <div className="nav-link-wrapper"><a href="#waitlist" className="nav-cta js-to-waitlist">Join waitlist</a></div>
+                <AccountMenu />
               </div>
             </nav>
             <button

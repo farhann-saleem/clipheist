@@ -6,8 +6,15 @@ import Footer from '../components/Footer.jsx';
 import SceneImg from '../components/SceneImg.jsx';
 import ClipVideo from '../components/ClipVideo.jsx';
 import { CountdownText } from '../components/Countdown.jsx';
-import useSmoothAnchors from '../components/useSmoothAnchors.js';
+import { SmoothAnchors } from '../components/useSmoothAnchors.js';
 import { initLandingMotion } from '../lib/landingMotion.js';
+import { useAuth } from '../components/AuthContext.jsx';
+
+// Text that changes once the visitor is signed in (kept tiny so the animated page itself never re-renders).
+function AuthLabel({ out, in: signedIn }) {
+  const auth = useAuth();
+  return auth?.user ? signedIn : out;
+}
 
 // "How it works" panel 2: the waveform with four highlighted moments.
 function Wave() {
@@ -24,11 +31,11 @@ function Wave() {
 
 export default function Landing() {
   const root = useRef(null);
-  useSmoothAnchors();
   useGSAP(() => initLandingMotion(), { scope: root });
 
   return (
     <div ref={root}>
+      <SmoothAnchors />
       {/* ============ LOADER ============ */}
       <div className="loader" aria-hidden="true">
         <div className="loader-inner">
@@ -54,8 +61,7 @@ export default function Landing() {
           <div className="content_img-wrap"><SceneImg scene="beach" className="content_img" alt="" /></div>
           <div className="content_img-wrap"><SceneImg scene="chase" className="content_img" alt="" /></div>
           <div className="content_img-wrap"><SceneImg scene="night" className="content_img" alt="" /></div>
-          <div className="content_img-wrap"><SceneImg scene="sunset" className="content_img" alt="" /></div>
-        </div>
+              </div>
 
         <div className="container hero-container">
           <div className="hero-text-wrapper">
@@ -81,7 +87,7 @@ export default function Landing() {
                     <div className="animate-on-load"><div className="small-text label">GTA 6 launch</div></div>
                     <div className="animate-on-load"><div className="small-text">19 Nov 2026</div></div>
                     <div className="animate-on-load"><CountdownText className="small-text countdown" /></div>
-                    <div className="animate-on-load"><a href="#waitlist" className="small-link js-to-waitlist"><div className="small-text">Get early access ↗</div></a></div>
+                    <div className="animate-on-load"><a href="#waitlist" className="small-link js-to-waitlist"><div className="small-text"><AuthLabel out="Get early access ↗" in="Pre-order your plan ↗" /></div></a></div>
                   </div>
                 </div>
               </div>
@@ -97,7 +103,7 @@ export default function Landing() {
               <div className="hero-button-holder">
                 <div className="animate-on-load">
                   <a href="#waitlist" className="button js-to-waitlist">
-                    <div className="button-text-holder"><div className="button-text">Join the waitlist</div><div className="button-text">Join the waitlist</div></div>
+                    <div className="button-text-holder"><div className="button-text"><AuthLabel out="Join the waitlist" in="Pre-order your plan" /></div><div className="button-text"><AuthLabel out="Join the waitlist" in="Pre-order your plan" /></div></div>
                     <span className="button-icon" aria-hidden="true"><svg viewBox="0 0 14 14"><path d="M3 11L11 3M11 3H4.5M11 3v6.5" stroke="#000" strokeWidth="1.6" fill="none" strokeLinecap="round"/></svg></span>
                   </a>
                 </div>
@@ -153,7 +159,7 @@ export default function Landing() {
                   <div className="core-foot"><div className="core-bars" aria-hidden="true"><i style={{height: '30%'}}></i><i style={{height: '45%'}}></i><i style={{height: '38%'}}></i><i className="up" style={{height: '70%'}}></i><i style={{height: '52%'}}></i><i className="up" style={{height: '86%'}}></i><i className="up" style={{height: '100%'}}></i></div></div>
                 </div>
               </div>
-              <div className="core-strip fade-in-on-scroll"><p>Just stream. Clipping, posting and learning what works is on us, so you can focus on growing and getting monetized.</p><a href="#waitlist" className="nav-cta js-to-waitlist">Join waitlist</a></div>
+              <div className="core-strip fade-in-on-scroll"><p>Just stream. Clipping, posting and learning what works is on us, so you can focus on growing and getting monetized.</p><a href="#waitlist" className="nav-cta js-to-waitlist"><AuthLabel out="Join waitlist" in="Pre-order your plan" /></a></div>
             </div>
           </div>
         </div>
