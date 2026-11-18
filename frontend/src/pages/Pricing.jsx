@@ -107,7 +107,7 @@ function StepBanner({ name }) {
     <div className="pr-step" role="status">
       <div className="pr-step-top">
         <span className="pr-step-pill">Step 2 of 2</span>
-        {spots && <span className="pr-step-spots"><b>{spots.left}</b> of 100 early-access spots left</span>}
+        {spots && <span className="pr-step-spots"><b>{spots.left}</b> early-access spots left</span>}
       </div>
       <strong>{name ? `You're signed in, ${name.split(' ')[0]}.` : "You're signed in."} Pre-order a plan to lock your spot.</strong>
       <p>Pay the 40% launch price today. Your clips are ready the moment accounts open on 19 November. 48-hour refund if you change your mind.</p>

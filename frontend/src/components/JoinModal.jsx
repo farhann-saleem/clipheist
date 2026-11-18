@@ -42,7 +42,6 @@ export default function JoinModal({ onClose }) {
 
         <div className="jm-spots" aria-live="polite">
           <div className="jm-spots-text">
-            <span>Early access is limited to the first <b>100</b> people</span>
             <b className="jm-left">{left === undefined ? '…' : left === 0 ? 'Full' : `${left} spots left`}</b>
           </div>
           <div className="jm-bar"><i style={{ width: `${pct}%` }} /></div>
