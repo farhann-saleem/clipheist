@@ -141,7 +141,7 @@ class Gate:
             # decided before a single byte of the file is accepted: verified, has a free slot, has disk space
             def allowed():
                 with ctx.as_user(user.id):
-                    _need_verified(); _job_slots(); _quota()                     # noqa: E702
+                    _need_verified(); _job_slots(); _quota(); _credits()         # noqa: E702
             try:
                 await run_in_threadpool(allowed)
             except HTTPException as e:
@@ -536,12 +536,20 @@ def google_callback(request: Request, code: str = "", state: str = "", error: st
 
 
 # ================================================================ app status
+def _safe_credits():
+    from . import credits
+    try:
+        return credits.profile()
+    except Exception:
+        return None
+
+
 @app.get("/api/status")
 def status(request: Request):
     from . import notices
     from . import updates
     me_ = _me(request)
-    return {"user": auth.public(me_), "update": updates.latest() if me_.is_admin else None, "accounts": config.ACCOUNTS, "links": {"repo": config.REPO_URL, "follow": config.FOLLOW_URL}, "ai": usage.brief(), "unread": notices.unread(),
+    return {"user": auth.public(me_), "update": updates.latest() if me_.is_admin else None, "accounts": config.ACCOUNTS, "links": {"repo": config.REPO_URL, "follow": config.FOLLOW_URL}, "ai": usage.brief(), "credits": _safe_credits(), "unread": notices.unread(),
             "tour": not accounts.settings()["tour_done"],
             "youtube": accounts.youtube_ready(), "connect": {p: accounts.can_connect(p) for p in accounts.PLATFORM_NAMES}, "max_upload_mb": config.MAX_UPLOAD_MB, "upload_part_mb": config.UPLOAD_PART_MB, "max_batch": config.MAX_ACTIVE_JOBS_PER_USER,
             "styles": {k: v["label"] for k, v in render.STYLES.items()}, "layouts": render.LAYOUTS}
@@ -553,6 +561,30 @@ def _job_or_404(jid: str):
     if not job:
         raise HTTPException(404, "No such video")
     return job
+
+
+def _credits() -> dict:
+    """Block when the user has no clips left; returns the profile so the job can be capped and watermarked."""
+    from . import credits
+    try:
+        p = credits.profile()
+    except Exception:
+        raise HTTPException(503, "Couldn't check your clip balance. Try again in a moment.")
+    if p.get("missing"):
+        raise HTTPException(402, "Sign in once at clipheist.site with this Google account to get your free clips.")
+    if p["left"] <= 0:
+        raise HTTPException(402, "You're out of clips. Get more at clipheist.site/pricing.")
+    return p
+
+
+def _apply_credits(job, p):
+    """Cap the clip count at the balance and mark free-plan jobs for a watermark."""
+    if p.get("unlimited"):
+        return
+    o = job["options"]
+    o["max_clips"] = max(1, min(int(o.get("max_clips") or 6), p["left"]))
+    job["watermark"] = bool(p.get("watermark"))
+    jobs.save(job)
 
 
 def _job_slots():
@@ -673,6 +705,7 @@ def link_preview(request: Request, url: str = ""):
 def create_from_link(body: dict = Body(...)):
     _need_verified()
     _quota()
+    cred = _credits()
     _throttle("newjob:" + ctx.uid(), 30, 600)
     url = str(body.get("url", "")).strip()[:500]
     if not media.site_allowed(url):
@@ -684,10 +717,30 @@ def create_from_link(body: dict = Body(...)):
     creator = str(body.get("creator") or "") or None
     if creator and not creators.get(creator):
         raise HTTPException(404, "No such creator")
+    # Same link, same look, already clipped by anyone: hand over those clips at once instead of making them again.
+    try:
+        opts_in = dict(body.get("options") or {})
+        if not cred.get("unlimited"):
+            opts_in["max_clips"] = max(1, min(int(opts_in.get("max_clips") or jobs.DEFAULTS["max_clips"]), cred["left"]))
+        ready = jobs.find_ready(url, opts_in, watermark=bool(cred.get("watermark")))
+        if ready:
+            job = jobs.clone_ready(ready, opts_in, creator=creator, watermark=bool(cred.get("watermark")))
+            from . import credits
+            try:
+                credits.spend(ctx.uid(), len(job["clips"]))
+                job["charged"] = len(job["clips"])
+                jobs.save(job)
+            except Exception:  # noqa: BLE001
+                pass
+            return jobs.public(job)
+    except (ValueError, TypeError):
+        pass
     try:
         with _create_lock:
             _job_slots()
-            job = jobs.create({"type": "url", "url": url, "name": url}, body.get("options") or {}, creator=creator)
+            job = jobs.create({"type": "url", "url": url, "name": url}, body.get("options") or {}, creator=creator, enqueue=False)
+            _apply_credits(job, cred)
+            jobs.enqueue(job)
     except (ValueError, TypeError) as e:
         raise HTTPException(400, str(e) if isinstance(e, ValueError) else "Those options aren't valid.")
     seen = media._PREVIEWS.get(url)  # already looked up while the user was typing: show it straight away
@@ -729,6 +782,7 @@ def create_from_file(file: UploadFile = File(...), options: str = Form("{}"), cr
             with _create_lock:
                 _job_slots()
                 job = jobs.create({"type": "file", "path": str(tmp), "name": name}, opts, enqueue=False, creator=creator or None)
+                _apply_credits(job, _credits())
         except (ValueError, TypeError):
             raise HTTPException(400, "Those options aren't valid.")
         _disk.pop(ctx.uid(), None)
@@ -865,6 +919,7 @@ def upload_finish(upid: str):
                 _job_slots()
                 job = jobs.create({"type": "file", "path": "", "name": meta["name"]}, meta["options"], enqueue=False,
                                   creator=meta["creator"] or None)
+                _apply_credits(job, _credits())
         except (ValueError, TypeError):
             raise HTTPException(400, "Those options aren't valid.")
         dest = jobs.job_dir(job["id"]) / ("source" + meta["ext"])

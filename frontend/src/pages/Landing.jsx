@@ -87,7 +87,7 @@ export default function Landing() {
                     <div className="animate-on-load"><div className="small-text label">GTA 6 launch</div></div>
                     <div className="animate-on-load"><div className="small-text">19 Nov 2026</div></div>
                     <div className="animate-on-load"><CountdownText className="small-text countdown" /></div>
-                    <div className="animate-on-load"><a href="#waitlist" className="small-link js-to-waitlist"><div className="small-text"><AuthLabel out="Get early access ↗" in="Pre-order your plan ↗" /></div></a></div>
+                    <div className="animate-on-load"><a href="#waitlist" className="small-link js-to-waitlist"><div className="small-text">Try 3 free clips ↗</div></a></div>
                   </div>
                 </div>
               </div>
@@ -103,7 +103,7 @@ export default function Landing() {
               <div className="hero-button-holder">
                 <div className="animate-on-load">
                   <a href="#waitlist" className="button js-to-waitlist">
-                    <div className="button-text-holder"><div className="button-text"><AuthLabel out="Join the waitlist" in="Pre-order your plan" /></div><div className="button-text"><AuthLabel out="Join the waitlist" in="Pre-order your plan" /></div></div>
+                    <div className="button-text-holder"><div className="button-text">Start clipping free</div><div className="button-text">Start clipping free</div></div>
                     <span className="button-icon" aria-hidden="true"><svg viewBox="0 0 14 14"><path d="M3 11L11 3M11 3H4.5M11 3v6.5" stroke="#000" strokeWidth="1.6" fill="none" strokeLinecap="round"/></svg></span>
                   </a>
                 </div>
@@ -159,7 +159,7 @@ export default function Landing() {
                   <div className="core-foot"><div className="core-bars" aria-hidden="true"><i style={{height: '30%'}}></i><i style={{height: '45%'}}></i><i style={{height: '38%'}}></i><i className="up" style={{height: '70%'}}></i><i style={{height: '52%'}}></i><i className="up" style={{height: '86%'}}></i><i className="up" style={{height: '100%'}}></i></div></div>
                 </div>
               </div>
-              <div className="core-strip fade-in-on-scroll"><p>Just stream. Clipping, posting and learning what works is on us, so you can focus on growing and getting monetized.</p><a href="#waitlist" className="nav-cta js-to-waitlist"><AuthLabel out="Join waitlist" in="Pre-order your plan" /></a></div>
+              <div className="core-strip fade-in-on-scroll"><p>Just stream. Clipping, posting and learning what works is on us, so you can focus on growing and getting monetized.</p><a href="#waitlist" className="nav-cta js-to-waitlist">Start clipping</a></div>
             </div>
           </div>
         </div>
@@ -195,7 +195,7 @@ export default function Landing() {
                   <div className="clips-bar"><span className="paragraph-title">Clips</span><span className="paragraph-title clips-count">01 / 04</span></div>
                 </div>
                 <div className="clips-media">
-                    <a href="#waitlist" className="clips-slide js-to-waitlist first" aria-label="Bank Job: join the waitlist to get clips like this">
+                    <a href="#waitlist" className="clips-slide js-to-waitlist first" aria-label="Bank Job: start clipping to get clips like this">
                       <SceneImg scene="marina" className="bg" alt="" />
                       <div className="overlay"></div>
                       <div className="clips-phone"><div className="clip">
@@ -208,7 +208,7 @@ export default function Landing() {
                       <div className="discover"><div className="paragraph-title">Get clips like this</div></div>
                       <div className="clips-tag">Pulled from a 4h stream · 01:12:40</div>
                     </a>
-                    <a href="#waitlist" className="clips-slide js-to-waitlist" aria-label="Hot Pursuit: join the waitlist to get clips like this">
+                    <a href="#waitlist" className="clips-slide js-to-waitlist" aria-label="Hot Pursuit: start clipping to get clips like this">
                       <SceneImg scene="night" className="bg" alt="" />
                       <div className="overlay"></div>
                       <div className="clips-phone"><div className="clip">
@@ -221,7 +221,7 @@ export default function Landing() {
                       <div className="discover"><div className="paragraph-title">Get clips like this</div></div>
                       <div className="clips-tag">Pulled from a 4h stream · 02:03:11</div>
                     </a>
-                    <a href="#waitlist" className="clips-slide js-to-waitlist" aria-label="Total Chaos: join the waitlist to get clips like this">
+                    <a href="#waitlist" className="clips-slide js-to-waitlist" aria-label="Total Chaos: start clipping to get clips like this">
                       <SceneImg scene="neon" className="bg" alt="" />
                       <div className="overlay"></div>
                       <div className="clips-phone"><div className="clip">
@@ -234,7 +234,7 @@ export default function Landing() {
                       <div className="discover"><div className="paragraph-title">Get clips like this</div></div>
                       <div className="clips-tag">Pulled from a 4h stream · 02:47:52</div>
                     </a>
-                    <a href="#waitlist" className="clips-slide js-to-waitlist" aria-label="Clean Getaway: join the waitlist to get clips like this">
+                    <a href="#waitlist" className="clips-slide js-to-waitlist" aria-label="Clean Getaway: start clipping to get clips like this">
                       <SceneImg scene="sunset" className="bg" alt="" />
                       <div className="overlay"></div>
                       <div className="clips-phone"><div className="clip">
@@ -362,9 +362,9 @@ export default function Landing() {
                 <div className="testimonial-item"><div><h3>Who is it for?</h3><p>GTA 6 streamers who want short-form content without editing, and clippers who cut streams for other creators.</p></div><div className="testimonial-user-holder"><div className="testimonial-user">02</div><div className="testimonial-content"><div className="paragraph-title">Audience</div><p className="no-margins">Streamers + clippers</p></div></div></div>
                 <div className="testimonial-item"><div><h3>Do I need to edit anything?</h3><p>No. ClipHeist finds the moments, crops them to vertical and posts them for you.</p></div><div className="testimonial-user-holder"><div className="testimonial-user">03</div><div className="testimonial-content"><div className="paragraph-title">Workflow</div><p className="no-margins">No editing</p></div></div></div>
                 <div className="testimonial-item"><div><h3>Where do the clips get posted?</h3><p>ClipHeist posts them straight to TikTok, YouTube Shorts and Instagram Reels.</p></div><div className="testimonial-user-holder"><div className="testimonial-user">04</div><div className="testimonial-content"><div className="paragraph-title">Platforms</div><p className="no-margins">Shorts, Reels, TikTok</p></div></div></div>
-                <div className="testimonial-item"><div><h3>What do I get for joining?</h3><p>Everyone on the waitlist gets early access and a launch discount.</p></div><div className="testimonial-user-holder"><div className="testimonial-user">05</div><div className="testimonial-content"><div className="paragraph-title">Waitlist</div><p className="no-margins">Early access + discount</p></div></div></div>
-                <div className="testimonial-item"><div><h3>When does it launch?</h3><p>We're getting ready for the GTA 6 launch on 19 November 2026. Waitlist members hear first when access opens.</p></div><div className="testimonial-user-holder"><div className="testimonial-user">06</div><div className="testimonial-content"><div className="paragraph-title">Timing</div><p className="no-margins">GTA 6 launch</p></div></div></div>
-                <div className="testimonial-item"><div><h3>How much will it cost?</h3><p>There are three plans. See the <Link to="/pricing" style={{textDecoration: 'underline'}}>pricing page</Link>. Waitlist members get the launch discount.</p></div><div className="testimonial-user-holder"><div className="testimonial-user">07</div><div className="testimonial-content"><div className="paragraph-title">Pricing</div><p className="no-margins">Three plans</p></div></div></div>
+                <div className="testimonial-item"><div><h3>Can I try it free?</h3><p>Yes. Sign in with Google and get 3 free clips (small watermark). No card needed.</p></div><div className="testimonial-user-holder"><div className="testimonial-user">05</div><div className="testimonial-content"><div className="paragraph-title">Free trial</div><p className="no-margins">3 clips, no card</p></div></div></div>
+                <div className="testimonial-item"><div><h3>When does it launch?</h3><p>We're getting ready for the GTA 6 launch on 19 November 2026. ClipHeist is open now, so your clips are ready the day it drops.</p></div><div className="testimonial-user-holder"><div className="testimonial-user">06</div><div className="testimonial-content"><div className="paragraph-title">Timing</div><p className="no-margins">GTA 6 launch</p></div></div></div>
+                <div className="testimonial-item"><div><h3>How much will it cost?</h3><p>There are three plans. See the <Link to="/pricing" style={{textDecoration: 'underline'}}>pricing page</Link>. Launch price is 40% off until Sunday 22 November.</p></div><div className="testimonial-user-holder"><div className="testimonial-user">07</div><div className="testimonial-content"><div className="paragraph-title">Pricing</div><p className="no-margins">Three plans</p></div></div></div>
                 <div className="testimonial-item"><div><h3>Is this made by Rockstar?</h3><p>No. ClipHeist is an independent tool and is not affiliated with Rockstar Games or Take-Two Interactive.</p></div><div className="testimonial-user-holder"><div className="testimonial-user">08</div><div className="testimonial-content"><div className="paragraph-title">Legal</div><p className="no-margins">Independent</p></div></div></div>
               </div>
             </div>

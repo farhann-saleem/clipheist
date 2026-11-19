@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, PLAN_NAMES, clipsLeft } from './AuthContext.jsx';
 
-// Navbar account control. Signed out: "Sign in" (Google) + the yellow "Join waitlist" button.
+// Navbar account control. Signed out: "Sign in" (Google) + the yellow "Start clipping" button.
 // Signed in: a chip with plan and clips left; clicking it opens a small menu with the email and "Sign out".
 export default function AccountMenu() {
   const auth = useAuth();
@@ -25,7 +25,7 @@ export default function AccountMenu() {
           <button type="button" className="nav-link nav-signin" onClick={() => auth?.signIn()} disabled={!auth?.ready}>Sign in</button>
           <div className="nav-line"></div>
         </div>
-        <div className="nav-link-wrapper"><a href="#waitlist" className="nav-cta js-to-waitlist">Join waitlist</a></div>
+        <div className="nav-link-wrapper"><a href="#waitlist" className="nav-cta js-to-waitlist">Start clipping</a></div>
       </>
     );
   }

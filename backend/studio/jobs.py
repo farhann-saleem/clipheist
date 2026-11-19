@@ -4,6 +4,7 @@ import json
 import os
 import math
 import queue
+import re
 import shutil
 import threading
 import time
@@ -11,7 +12,7 @@ import traceback
 import uuid
 from pathlib import Path
 
-from . import brain, config, creators, ctx, load, media, render, roman, safe, transcribe, usage
+from . import brain, config, creators, ctx, load, media, remote_render, render, roman, safe, transcribe, usage
 
 class _FairQueue:
     """Whose video is next. Each person has their own line and the lines take turns, so someone who adds ten
@@ -179,6 +180,7 @@ def save(job):
 
 
 def _set(job, **kw):
+    kw["beat"] = time.time()          # last sign of life, so the page can tell working from stuck
     with _lock:
         job.update(kw)
     save(job)
@@ -361,13 +363,13 @@ def request_render(jid, cid, changes: dict):
     _q.put(("clip", jid, cid))
 
 
-def render_one(job, clip, words):
+def render_one(job, clip, words, audio=None):
     d = Path(job["dir"])
     clip["status"] = "rendering"
     save(job)
     try:
         off = clip.get("src_offset", 0.0)
-        src = Path(clip["src"]) if clip.get("src") else Path(job["source_path"])
+        src = Path(clip["src"]) if clip.get("src") else Path(job.get("source_path") or ".")
         if not clip.get("src"):
             clip["end"] = min(clip["end"], job["duration"])
         local = dict(clip, start=clip["start"] - off, end=clip["end"] - off, hook=roman.to_roman(clip.get("hook") or ""))
@@ -386,7 +388,26 @@ def render_one(job, clip, words):
                 pass
         # the last word on it: whatever was said, nothing is drawn in Hindi or Urdu script
         near = [dict(w, s=w["s"] - off, e=w["e"] - off) for w in roman.words(raw)]
-        out = render.render_clip(src, d / "clips", clip["id"], local, near, job["width"], job["height"])
+        local["watermark"] = bool(job.get("watermark"))
+        out = None
+        if clip.pop("remote", None) and not clip.get("src"):
+            try:      # Modal downloads this stretch and renders it; on any trouble the clip is made here instead
+                m = remote_render.cut(job, clip, roman.words(raw), audio, local["hook"])
+                clip.update(src=m["src"], src_offset=m["offset"], src_end=m["src_end"], start=m["start"], end=m["end"])
+                job.setdefault("width", m["width"])
+                job.setdefault("height", m["height"])
+                out = {"file": f"{clip['id']}.mp4", "cover": f"{clip['id']}.jpg", "layout": m["layout"]}
+            except Exception as e:  # noqa: BLE001
+                print(f"remote render failed for {clip['id']}, making it here: {safe.friendly(e, 300)}", flush=True)
+                _fetch_piece(job, clip, audio)
+                if clip["status"] == "error":
+                    raise RuntimeError(clip["error"])
+                off = clip["src_offset"]
+                src = Path(clip["src"])
+                local.update(start=clip["start"] - off, end=clip["end"] - off)
+                near = [dict(w, s=w["s"] - off, e=w["e"] - off) for w in roman.words(raw)]
+        if out is None:
+            out = render.render_clip(src, d / "clips", clip["id"], local, near, job["width"], job["height"])
         clip.update(out, status="done", version=clip.get("version", 0) + 1, error=None)
         post = {k: clip[k] for k in ("title", "description", "hashtags", "hook", "start", "end", "score")}
         (d / "clips" / f"{clip['id']}.json").write_text(json.dumps(post, indent=1), encoding="utf-8")
@@ -503,10 +524,12 @@ def _run_job(job):
     if resuming:   # after a restart: keep the transcript parts, clips and AI answers already made, and carry on
         _set(job, status="running", stage="Picking up where it stopped", error=None)
     else:
-        _set(job, status="running", stage="Getting the audio", progress=0.03, error=None, clips=[], ai={}, done_blocks=0,
+        _set(job, status="running", stage="Opening the link", step=1, started=time.time(), progress=0.02, error=None, clips=[], ai={}, done_blocks=0,
              candidates=[])
     fetch = ThreadPoolExecutor(1)
     video = None
+    vprog = {}                        # how far the background whole-video download is
+    part_only = False                 # only the chosen part of the audio was fetched
     if src["type"] == "url":
         meta = media.info(src["url"])
         if meta["kind"] != "video":
@@ -516,15 +539,26 @@ def _run_job(job):
         if meta["is_live"]:
             raise RuntimeError("This link is a live stream, so it would never finish downloading. Open the creator, "
                                "put this link under Setup, and press Start recording instead.")
-        _set(job, title=meta["title"], uploader=meta["uploader"], duration=meta["duration"])
+        _set(job, title=meta["title"], uploader=meta["uploader"], duration=meta["duration"], stage="Downloading the stream", step=2, progress=0.03)
         if not job.get("thumb") and media.save_thumb(d, url=src["url"]):
             _set(job, thumb=True)
         usage.set_context(job["creator"], meta["title"])
+        if meta["duration"] > 0:
+            if (o["range_start"] or 0) >= meta["duration"] - 5:
+                raise RuntimeError(f"The start time is past the end of this video (it is {int(meta['duration'] // 60)} min long). "
+                                   "Choose an earlier part under Options.")
+            if o["range_end"] and o["range_end"] > meta["duration"]:
+                o["range_end"] = meta["duration"]
         span = (o["range_end"] or meta["duration"]) - (o["range_start"] or 0)
-        pieces = span > LONG_VIDEO or meta["duration"] <= 0
+        pieces = span > LONG_VIDEO or meta["duration"] > LONG_VIDEO or meta["duration"] <= 0 or remote_render.enabled()
         if not pieces:  # shorter video: fetch all of it in the background while the audio is worked on
-            video = fetch.submit(media.download, src["url"], d, int(o["quality"]))
-        audio_file = media.download_audio(src["url"], d, lambda p: _set(job, progress=0.03 + 0.1 * p))
+            video = fetch.submit(media.download, src["url"], d, int(o["quality"]), lambda p: vprog.update(p=p))
+        part_only = bool(o["range_start"] or o["range_end"]) and not resuming
+        audio_file = media.download_audio(src["url"], d, lambda p: _set(job, progress=0.03 + 0.27 * p,
+                                                                        stage=f"Downloading the stream · {int(p * 100)}%"),
+                                          start=o["range_start"], end=o["range_end"]) if part_only else \
+            media.download_audio(src["url"], d, lambda p: _set(job, progress=0.03 + 0.27 * p,
+                                                               stage=f"Downloading the stream · {int(p * 100)}%"))
     else:
         pieces, audio_file = False, Path(src["path"])
         info = media.probe(audio_file)
@@ -534,9 +568,14 @@ def _run_job(job):
         if not job.get("thumb") and media.save_thumb(d, video=audio_file):
             _set(job, thumb=True)
     wav = d / "audio.wav"
+    _set(job, stage="Preparing the audio", step=2, progress=max(job.get("progress", 0), 0.30))
     media.extract_audio(audio_file, wav)
     audio = media.load_audio(wav)
     wav.unlink(missing_ok=True)
+    if part_only and o["range_start"]:
+        import numpy as np
+        # only the chosen part was fetched: put silence in front so every time still counts from the video's start
+        audio = np.concatenate([np.zeros(int(o["range_start"] * 16000), dtype=audio.dtype), audio])
     if src["type"] == "url":
         audio_file.unlink(missing_ok=True)
     if not job["duration"]:
@@ -554,6 +593,10 @@ def _run_job(job):
             if "path" not in vstate:
                 path = None
                 try:
+                    while not video.done():            # say what we're waiting for, never sit silent
+                        p = vprog.get("p")
+                        _set(job, stage="Downloading the video for your clips" + (f" · {int(p * 100)}%" if p else ""))
+                        time.sleep(2)
                     path = video.result()
                 except Exception as e:  # noqa: BLE001 - sites sometimes refuse a download
                     notes.append(f"Video download refused once ({str(e)[-80:]}), retrying")
@@ -571,7 +614,10 @@ def _run_job(job):
 
     def make(clip, words_now):
         if src["type"] == "url" and (pieces or not whole_video()):
-            _fetch_piece(job, clip, audio)
+            if remote_render.enabled():
+                clip["remote"] = True        # fetched and rendered on Modal in render_one
+            else:
+                _fetch_piece(job, clip, audio)
         if clip["status"] != "error" and ((yt and yt[1].lower().startswith("en")) or windows):
             # The clip was found with YouTube's transcript, or with only parts of the audio transcribed. What is
             # shown on screen comes from our own model, run on just this clip: full punctuation, nothing blanked
@@ -585,10 +631,10 @@ def _run_job(job):
                 exact[clip["id"]] = (a0 / 16000, b0 / 16000, tw)
                 words_now = tw
         if clip["status"] != "error":
-            render_one(job, clip, words_now)
+            render_one(job, clip, words_now, audio)
 
     cpus = os.cpu_count() or 4
-    renders = ThreadPoolExecutor(2 if cpus < 8 else min(6, cpus // 6))  # more clips made at once on a bigger machine
+    renders = ThreadPoolExecutor(4 if cpus < 8 else min(8, cpus // 3))   # mostly waiting on downloads, so more at once  # more clips made at once on a bigger machine
     futures = []
     step = BLOCK * 16000 if span > PROGRESSIVE_FROM else hi - lo
     blocks = [(x, min(hi, x + step)) for x in range(lo, hi, step)] or [(lo, hi)]
@@ -638,7 +684,7 @@ def _run_job(job):
             def tp(p, i=i, a_=a_, b_=b_):
                 if now_on[0] == i and p - last[0] > 0.05:      # only the part being shown moves the bar
                     last[0] = p
-                    _set(job, progress=max(job["progress"], 0.14 + 0.78 * ((a_ - lo) + p * (b_ - a_)) / max(1, hi - lo)))
+                    _set(job, progress=max(job["progress"], 0.31 + 0.59 * ((a_ - lo) + p * (b_ - a_)) / max(1, hi - lo)))
             if windows:
                 heard[i] = ahead.submit(ctx.bind(_hear_parts), audio, lo, a_, b_, windows, tp)
             else:
@@ -650,18 +696,18 @@ def _run_job(job):
         shift = a / 16000
         where = f" (minute {round((a - lo) / 16000 / 60)} of {round(span / 60)})" if len(blocks) > 1 else ""
         if yt:
-            _set(job, stage="Reading the transcript" + where)
+            _set(job, stage="Reading the transcript" + where, step=3)
             bw = [dict(w, s=round(w["s"] - shift, 2), e=round(w["e"] - shift, 2)) for w in yt[0] if a / 16000 <= w["s"] < b / 16000]
         else:
-            _set(job, stage="Writing the transcript" + where)
+            _set(job, stage="Writing the transcript" + where, step=3)
             now_on[0] = bi
             hear(bi)
             hear(bi + 1)
             bw = heard.pop(bi).result()
-        _set(job, progress=max(job["progress"], 0.14 + 0.78 * (b - lo) / max(1, hi - lo)))
+        _set(job, progress=max(job["progress"], 0.31 + 0.59 * (b - lo) / max(1, hi - lo)))
         words += [dict(w, s=round(w["s"] + shift, 2), e=round(w["e"] + shift, 2)) for w in bw]
         (d / "words.json").write_text(json.dumps(words), encoding="utf-8")
-        _set(job, stage="Finding the best moments" + where, word_count=len(words))
+        _set(job, stage="Finding the best moments" + where, step=4, word_count=len(words))
         if len(bw) < 8:
             job["done_blocks"] = bi + 1
             save(job)
@@ -685,7 +731,7 @@ def _run_job(job):
         save(job)
     best = _best(job.get("candidates") or [], int(o["max_clips"]) - len(job["clips"]), job["clips"])
     if best:
-        _set(job, stage=f"Making the best {len(best)} clips")
+        _set(job, stage=f"Rendering {len(best)} clips", step=5)
     for c in best:
         c.update(id=f"clip{len(job['clips']) + 1:02d}", style=o["style"], layout=o["layout"], status="queued", version=0)
         job["clips"].append(c)
@@ -693,9 +739,11 @@ def _run_job(job):
     job["candidates"] = []
     save(job)
     if futures:
-        _set(job, stage="Finishing the clips", progress=max(job["progress"], 0.92))
-    for f in futures:
+        _set(job, stage=f"Rendering clip 1 of {len(futures)}", step=5, progress=max(job["progress"], 0.90))
+    for i, f in enumerate(futures, 1):
         f.result()
+        _set(job, progress=max(job["progress"], 0.90 + 0.10 * i / len(futures)),
+             stage=f"Rendering clip {min(i + 1, len(futures))} of {len(futures)}" if i < len(futures) else "Saving your clips")
     if exact:           # keep our own words for the clips in the saved transcript, so editing a clip later uses them
         for a_s, b_s, tw in exact.values():
             words = [w for w in words if not a_s <= w["s"] < b_s] + tw
@@ -710,6 +758,15 @@ def _run_job(job):
                  "note": "The AI was unavailable, so clips were picked by loudness only." if clips and not model else ""}
     stage = "Done" if clips else "Done, but nothing clip-worthy was found"
     _set(job, status="done", stage=stage, progress=1.0, took=round(time.time() - t0))
+    if not job.get("charged"):
+        made = sum(1 for c in clips if c.get("status") == "done")
+        try:
+            from . import credits
+            credits.spend(job["user"], made)
+            job["charged"] = made
+            save(job)
+        except Exception:  # noqa: BLE001 - never lose the clips over a billing hiccup
+            import traceback; traceback.print_exc()
     try:
         from . import notices
         name = job.get("title") or job["source"].get("name") or "your video"
@@ -776,3 +833,81 @@ def start():
         threading.Thread(target=_worker, daemon=True).start()
     threading.Thread(target=_worker, args=(True,), daemon=True).start()   # re-making a single clip never waits behind whole videos
     threading.Thread(target=_live_worker, daemon=True).start()
+
+
+# ---------------------------------------------------------------- same link, made once
+# When anyone pastes a link that was already clipped with the same look (style, layout, quality, lengths, part of
+# the video), the finished clips are copied into the new person's library at once instead of being made again.
+SAME_LOOK = ("style", "layout", "quality", "min_len", "max_len", "range_start", "range_end")
+
+
+def canonical_url(url: str) -> str:
+    from urllib.parse import urlparse, parse_qs
+    u = urlparse(url.strip())
+    host = (u.netloc or "").lower().removeprefix("www.").removeprefix("m.")
+    path = u.path.rstrip("/")
+    if host == "youtu.be":
+        return "yt:" + path.strip("/")
+    if host.endswith("youtube.com"):
+        v = parse_qs(u.query).get("v", [""])[0]
+        if v:
+            return "yt:" + v
+        m = re.match(r"/(?:shorts|live|embed)/([\w-]+)", path)
+        if m:
+            return "yt:" + m.group(1)
+    return f"{host}{path}".lower()
+
+
+def find_ready(url: str, options: dict, watermark=False):
+    """A finished video from the same link with the same look and enough clips, from any user."""
+    key = canonical_url(url)
+    want = {**DEFAULTS, **clean_options(options)}
+    best = None
+    with _lock:
+        pool = list(_jobs.values())
+    for j in pool:
+        if j.get("status") != "done" or j.get("kind") != "video" or j.get("source", {}).get("type") != "url":
+            continue
+        if canonical_url(j["source"].get("url", "")) != key:
+            continue
+        o = j.get("options") or {}
+        if any(o.get(k) != want.get(k) for k in SAME_LOOK) or bool(j.get("watermark")) != bool(watermark):
+            continue
+        done = [c for c in j.get("clips", []) if c.get("status") == "done" and c.get("src") and Path(c["src"]).is_file()]
+        if not done or (len(done) < int(want["max_clips"]) and int(o.get("max_clips", 0)) < int(want["max_clips"])):
+            continue
+        if not best or len(done) > len(best[1]):
+            best = (j, done)
+    return best
+
+
+def clone_ready(found, options: dict, creator=None, watermark=False) -> dict:
+    """Copy finished clips into a new job for the current user. Returns the new job (already done)."""
+    import shutil as _sh
+    src_job, done = found
+    want = {**DEFAULTS, **clean_options(options)}
+    job = create(dict(src_job["source"]), options, enqueue=False, creator=creator)
+    d = Path(job["dir"])
+    (d / "clips").mkdir(exist_ok=True)
+    sd = Path(src_job["dir"])
+    for name in ("words.json", "clips/thumb.jpg"):
+        if (sd / name).is_file():
+            _sh.copyfile(sd / name, d / name)
+    picked = sorted(done, key=lambda c: -float(c.get("score") or 0))[: int(want["max_clips"])]
+    picked.sort(key=lambda c: c.get("start", 0))
+    clips = []
+    for c in picked:
+        for f in (sd / "clips").glob(f"{c['id']}.*"):
+            _sh.copyfile(f, d / "clips" / f.name)
+        nc = {k: v for k, v in c.items()}
+        if nc.get("src"):
+            nc["src"] = str(d / "clips" / Path(nc["src"]).name)
+        clips.append(nc)
+    for k in ("title", "uploader", "duration", "width", "height", "lang", "transcript_from", "word_count"):
+        if k in src_job:
+            job[k] = src_job[k]
+    job.update(clips=clips, thumb=(d / "clips" / "thumb.jpg").is_file(), status="done", progress=1.0, step=5,
+               stage="Done · ready instantly (this link was already clipped)", took=0, reused=True, watermark=bool(watermark),
+               ai={"model": (src_job.get("ai") or {}).get("model"), "tokens": 0, "note": ""})
+    save(job)
+    return job

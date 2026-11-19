@@ -242,23 +242,32 @@ def save_thumb(job_dir: Path, url: str = "", video: Path = None) -> bool:
     return False
 
 
-def download_audio(url: str, job_dir: Path, on_progress=None) -> Path:
+def download_audio(url: str, job_dir: Path, on_progress=None, start=None, end=None) -> Path:
     """Audio only: a few seconds even for long videos, and all the AI needs to pick clips."""
     def hook(d):
         total = d.get("total_bytes") or d.get("total_bytes_estimate")
         if on_progress and d.get("status") == "downloading" and total:
             on_progress(d.get("downloaded_bytes", 0) / total)
 
+    extra = {}
+    if start or end:          # only the chosen part of the video: much less to fetch
+        from yt_dlp.utils import download_range_func
+        extra["download_ranges"] = download_range_func(None, [(max(0.0, start or 0), end or float("inf"))])
     with _youtube_guard(url), _ydl({"format": "ba[ext=m4a]/ba/worst", "outtmpl": str(job_dir / "audio_src.%(ext)s"),
-               "progress_hooks": [hook]}) as ydl:
+               "progress_hooks": [hook], **extra}) as ydl:
         ydl.download([url])
     return _biggest(job_dir, "audio_src")
 
 
-def download(url: str, job_dir: Path, height=720) -> Path:
+def download(url: str, job_dir: Path, height=720, on_progress=None) -> Path:
     """The whole video. Used for shorter videos, where this is quicker than fetching pieces."""
+    def hook(d):
+        total = d.get("total_bytes") or d.get("total_bytes_estimate")
+        if on_progress and d.get("status") == "downloading" and total:
+            on_progress(d.get("downloaded_bytes", 0) / total)
     with _youtube_guard(url), _ydl({"format": _video_format(height), "merge_output_format": "mp4",
-                                    "outtmpl": str(job_dir / "source.%(ext)s")}) as ydl:
+                                    "outtmpl": str(job_dir / "source.%(ext)s"),
+                                    "progress_hooks": [hook]}) as ydl:
         ydl.download([url])
     return _biggest(job_dir, "source")
 

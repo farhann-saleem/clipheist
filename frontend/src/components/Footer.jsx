@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CountdownBoxes } from './Countdown.jsx';
 import { useAuth, PLAN_NAMES, clipsLeft } from './AuthContext.jsx';
@@ -12,45 +11,19 @@ const GoogleG = () => (
   </svg>
 );
 
-// Joining the waitlist = signing in with Google. The database adds the account to the waitlist and
-// keeps its plan and clip credits (filled in automatically when the person buys a plan).
-function WaitlistForm() {
+// The footer call to action: straight into the clipping app (3 free clips on first sign-in).
+function StartBlock() {
   const auth = useAuth();
-  const [error, setError] = useState('');
-  const signedIn = !!auth?.user;
-
-  const join = () => {
-    setError('');
-    if (!auth?.enabled) { setError('Sign-in is not available right now. Please try again soon.'); return; }
-    auth.signIn();
-  };
-
-  if (signedIn) {
-    const p = auth.profile;
-    return (
-      <div className="form-block signed-up">
-        <div className="success-message" role="status">
-          <strong>You're on the list.</strong>
-          <p>
-            Signed in as <span className="success-email">{auth.user.email}</span>.{' '}
-            {p && p.plan !== 'free'
-              ? <>Your <b>{PLAN_NAMES[p.plan]}</b> plan is active with <b>{clipsLeft(p)}</b> clips, ready when accounts open on 19 November.</>
-              : <>We'll email you when early access opens on 19 November, with your launch discount and {clipsLeft(p) || 3} free clips.</>}
-          </p>
-          <button type="button" className="link-button" onClick={auth.signOut}>Sign out</button>
-        </div>
-      </div>
-    );
-  }
-
+  const p = auth?.profile;
   return (
     <div className="form-block">
-      <button type="button" className="button google-button" onClick={join} disabled={auth && !auth.ready}>
+      <a href="https://app.clipheist.site" className="button google-button js-to-waitlist">
         <span className="google-icon"><GoogleG /></span>
-        <div className="button-text-holder"><div className="button-text">Join with Google</div><div className="button-text">Join with Google</div></div>
-      </button>
-      <p className="form-hint">One click. We only get your name and email. No spam.</p>
-      <div className="form-error" role="alert">{error}</div>
+        <div className="button-text-holder"><div className="button-text">Start clipping with Google</div><div className="button-text">Start clipping with Google</div></div>
+      </a>
+      <p className="form-hint">{p && p.plan !== 'free'
+        ? <>Your <b>{PLAN_NAMES[p.plan]}</b> plan has <b>{clipsLeft(p)}</b> clips ready.</>
+        : <>3 free clips, no card. Paste a stream link and get vertical clips back.</>}</p>
     </div>
   );
 }
@@ -65,11 +38,11 @@ export default function Footer({ base = '' }) {
           <div className="container">
             <div className="footer-wrapper">
               <div className="footer-signup-holder">
-                <div className="title-small">Join the waitlist</div>
+                <div className="title-small">Open now</div>
                 <h2 className="split-words-light">Get in before the heist.</h2>
-                <p className="lead">Early access to ClipHeist and a launch discount, before GTA 6 lands on 19 November 2026.</p>
-                <WaitlistForm />
-                <div className="footer-perks"><span>Early access</span><span>Launch discount</span><span>No spam</span></div>
+                <p className="lead">Turn your GTA 6 streams into captioned vertical clips. Launch price 40% off until Sunday.</p>
+                <StartBlock />
+                <div className="footer-perks"><span>3 free clips</span><span>No subscription</span><span>48-hour refund</span></div>
                 <CountdownBoxes className="footer-count" label="Time until GTA 6 launch" />
               </div>
               <div>

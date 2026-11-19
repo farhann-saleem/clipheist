@@ -42,8 +42,8 @@ const FAQ = [
   ['Is this a subscription?', 'No. You pay once and get your clips. Nothing renews, nothing to cancel.'],
   ['What happens after the launch deal?', 'The launch price ends Sunday 22 November, 11:59 PM PT. After that the plans go back to their normal price.'],
   ['What counts as a clip?', 'One finished vertical clip, ready to post. We make about 6 to 10 clips from each stream, and a stream can be up to 4 hours long.'],
-  ['When can I start clipping?', 'Accounts open on 19 November, when GTA 6 drops. If you buy before that, your clips are waiting for you and we email you the moment it opens.'],
-  ['Can I get a refund?', 'Yes. Within 48 hours of your pre-order (or, after launch, if you have used fewer than 10 clips), just ask and we refund you.'],
+  ['When can I start clipping?', 'Right now. Sign in at app.clipheist.site with the same Google account and paste a stream link.'],
+  ['Can I get a refund?', 'Yes. Within 48 hours of buying, or if you have used fewer than 10 clips, just ask and we refund you.'],
 ];
 
 const Arrow = () => (
@@ -85,7 +85,7 @@ function ThanksBanner({ plan }) {
   return (
     <div className="pr-thanks" role="status">
       <strong>Payment received. Thank you!</strong>
-      <p>Your {plan ? plan[0].toUpperCase() + plan.slice(1) : ''} clips are reserved. We'll email you the moment your account opens on 19 November, when GTA 6 drops. Your receipt is in your inbox. Sign in with Google using the same email to see your plan.</p>
+      <p>Your {plan ? plan[0].toUpperCase() + plan.slice(1) : ''} clips are ready. Open app.clipheist.site and sign in with Google using the same email. Your receipt is in your inbox.</p>
     </div>
   );
 }
@@ -109,8 +109,8 @@ function StepBanner({ name }) {
         <span className="pr-step-pill">Step 2 of 2</span>
         {spots && <span className="pr-step-spots"><b>{spots.left}</b> early-access spots left</span>}
       </div>
-      <strong>{name ? `You're signed in, ${name.split(' ')[0]}.` : "You're signed in."} Pre-order a plan to lock your spot.</strong>
-      <p>Pay the 40% launch price today. Your clips are ready the moment accounts open on 19 November. 48-hour refund if you change your mind.</p>
+      <strong>{name ? `You're signed in, ${name.split(' ')[0]}.` : "You're signed in."} Pick a plan to lock the launch price.</strong>
+      <p>Pay the 40% launch price today and start clipping right away. 48-hour refund if you change your mind.</p>
     </div>
   );
 }
@@ -142,8 +142,8 @@ function PlanCard({ plan, dealOn, email, current, auth }) {
       {/* Polar checkout. The launch discount is attached to the link and stops applying by itself after the deadline. */}
       <a href={checkoutUrl(plan, email)} onClick={go} className={`button pr-cta${plan.badge ? '' : ' secondary'}`}>
         <div className="button-text-holder">
-          <div className="button-text">Pre-order {plan.name} · ${price}</div>
-          <div className="button-text">Pre-order {plan.name} · ${price}</div>
+          <div className="button-text">Get {plan.name} · ${price}</div>
+          <div className="button-text">Get {plan.name} · ${price}</div>
         </div>
         <Arrow />
       </a>
@@ -176,7 +176,7 @@ export default function Pricing() {
               <div className="paragraph-title">Pricing</div>
               <h1>Pay once. Get your clips.</h1>
               <p className="pr-lead">No subscription. Pick how many clips you want, and keep posting all launch season.</p>
-              <p className="pr-note">Pre-order now: pay the launch price today, start clipping when accounts open on 19 November.</p>
+              <p className="pr-note">Open now. Pay once and start clipping today.</p>
             </div>
 
             {email && (
@@ -192,12 +192,12 @@ export default function Pricing() {
               <div>
                 <div className="small-text">Free trial</div>
                 {email
-                  ? <p>You're on the waitlist with 3 free clips (small watermark). Pre-order above to lock the launch price before it ends.</p>
+                  ? <p>You have 3 free clips (small watermark). Get a plan above to lock the launch price before it ends.</p>
                   : <p>3 clips from one stream, with a small watermark. See your own moments before you pay.</p>}
               </div>
-              {!email && (
+              {(
                 <a href="#waitlist" className="button secondary js-to-waitlist">
-                  <div className="button-text-holder"><div className="button-text">Join the waitlist</div><div className="button-text">Join the waitlist</div></div>
+                  <div className="button-text-holder"><div className="button-text">Try 3 free clips</div><div className="button-text">Try 3 free clips</div></div>
                 </a>
               )}
             </div>

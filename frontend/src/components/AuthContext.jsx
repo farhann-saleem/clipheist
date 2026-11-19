@@ -6,12 +6,15 @@ import JoinModal from './JoinModal.jsx';
 // Who is signed in (Google via Supabase) and their ClipHeist profile: plan and clip credits.
 const AuthCtx = createContext(null);
 const AFTER_LOGIN = 'ch-after-login';
+const TO_APP = 'ch-to-app';
+export const APP_HOME = 'https://app.clipheist.site';
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [ready, setReady] = useState(!supabase);
   const [joinOpen, setJoinOpen] = useState(false);
+  const [toApp, setToApp] = useState(false);
 
   const loadProfile = useCallback(async (s) => {
     if (!supabase || !s?.user) { setProfile(null); return; }
@@ -46,15 +49,23 @@ export function AuthProvider({ children }) {
       window.history.replaceState(null, '', url.pathname + url.search + url.hash);
     }
     let y = null;
-    try { y = sessionStorage.getItem(AFTER_LOGIN); sessionStorage.removeItem(AFTER_LOGIN); } catch { /* storage blocked */ }
+    let go = false;
+    try {
+      y = sessionStorage.getItem(AFTER_LOGIN); sessionStorage.removeItem(AFTER_LOGIN);
+      go = sessionStorage.getItem(TO_APP) === '1'; sessionStorage.removeItem(TO_APP);
+    } catch { /* storage blocked */ }
+    if (go) { window.location.href = APP_HOME; return; }
     if (y !== null && Number(y) > 0) setTimeout(() => window.scrollTo({ top: Number(y), behavior: 'instant' }), 500);
   }, [session]);
 
   // Fallback only (Google's button failed to load): full-page Google sign-in through Supabase,
   // coming back to the same page and scroll position.
-  const signInRedirect = useCallback(async () => {
+  const signInRedirect = useCallback(async (opts = {}) => {
     if (!supabase) return;
-    try { sessionStorage.setItem(AFTER_LOGIN, String(Math.round(window.scrollY))); } catch { /* storage blocked */ }
+    try {
+      sessionStorage.setItem(AFTER_LOGIN, String(Math.round(window.scrollY)));
+      if (opts.toApp) sessionStorage.setItem(TO_APP, '1');
+    } catch { /* storage blocked */ }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin + window.location.pathname },
@@ -62,9 +73,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Normal path: open the join window (plan choice + Google button, no page redirect).
-  const signIn = useCallback(() => {
+  // toApp: "Start clipping" was pressed, so go on to the clipping app once signed in.
+  const signIn = useCallback((opts = {}) => {
+    setToApp(!!opts.toApp);
     if (googleAvailable()) setJoinOpen(true);
-    else signInRedirect();
+    else signInRedirect(opts);
   }, [signInRedirect]);
 
   const savePlanChoice = useCallback(async (plan) => {
@@ -81,7 +94,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthCtx.Provider value={value}>
       {children}
-      {joinOpen && <JoinModal onClose={() => setJoinOpen(false)} />}
+      {joinOpen && <JoinModal toApp={toApp} onClose={() => setJoinOpen(false)} />}
     </AuthCtx.Provider>
   );
 }

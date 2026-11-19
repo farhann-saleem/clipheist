@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext.jsx';
 
 // In-page links (#about, #how, ...) scroll smoothly.
-// "Join the waitlist" links (.js-to-waitlist) open Google sign-in straight away: signing in IS joining.
-// Already signed in, they go to the pricing page instead.
+// "Start clipping" links (.js-to-waitlist) open the clipping app, after Google sign-in if needed.
+export const APP_URL = 'https://app.clipheist.site';
+
 export default function useSmoothAnchors() {
   const auth = useAuth();
   const navigate = useNavigate();
@@ -15,11 +16,12 @@ export default function useSmoothAnchors() {
     const onClick = (e) => {
       const a = e.target.closest('a');
       if (!a) return;
-      const { auth: au, navigate: nav } = ref.current;
       if (a.classList.contains('js-to-waitlist')) {
         e.preventDefault();
-        if (au?.user) nav('/pricing?step=plan');
-        else au?.signIn();
+        const { auth: au } = ref.current;
+        // Signed in: straight to the app. Not yet: Google sign-in first (creates the profile with 3 free clips).
+        if (!au?.enabled || au.user) window.location.href = APP_URL;
+        else au.signIn({ toApp: true });
         return;
       }
       const id = a.getAttribute('href') || '';

@@ -125,13 +125,13 @@ ALLOWED_SITES = tuple(s.strip().lower() for s in env(
 
 # ---------------------------------------------------------------- AI (bring your own key: see studio/ai.py)
 # These are the starting values. Whatever is saved from the dashboard (Settings, AI) is used instead.
-AI_PROVIDER = env("PEAKCUT_AI_PROVIDER", "gemini").strip().lower()            # gemini, openai, xai, groq, openrouter, anthropic, ollama, custom
-AI_MODELS = [m.strip() for m in env("PEAKCUT_AI_MODELS", "").split(",") if m.strip()]   # tried in this order
+AI_PROVIDER = env("PEAKCUT_AI_PROVIDER", "deepseek" if env("DEEPSEEK_API_KEY", "") else "gemini").strip().lower()            # gemini, openai, xai, groq, openrouter, anthropic, ollama, custom
+AI_MODELS = [m.strip() for m in env("PEAKCUT_AI_MODELS", "deepseek-chat" if AI_PROVIDER == "deepseek" else "").split(",") if m.strip()]   # tried in this order
 AI_BASE_URL = env("PEAKCUT_AI_BASE_URL", "").rstrip("/")                      # only for "custom", or to override a provider's address
 
 
 def ai_key() -> str:
-    return _secret("PEAKCUT_AI_KEY", "PEAKCUT_AI_KEY_FILE", r"\S{8,}")
+    return _secret("PEAKCUT_AI_KEY", "PEAKCUT_AI_KEY_FILE", r"\S{8,}") or (env("DEEPSEEK_API_KEY", "").strip() if AI_PROVIDER == "deepseek" else "")
 
 
 def ai_ready() -> bool:
