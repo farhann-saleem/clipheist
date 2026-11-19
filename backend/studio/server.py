@@ -27,7 +27,7 @@ from . import (accounts, ai, alerts, auth, config, creators, ctx, db, jobs, live
 app = FastAPI(title="ClipHeist", docs_url=None, redoc_url=None, openapi_url=None)
 WEB = config.WEB_DIR
 OPEN = ("/api/auth/", "/pub/", "/api/public", "/auth/google/", "/auth/verify", "/brand/", "/assets/", "/healthz", "/favicon.ico", "/robots.txt", "/sitemap.xml")
-PAGES = {"/": "landing.html", "/login": "auth.html", "/signup": "auth.html", "/reset": "reset.html",
+PAGES = {"/": "landing.html", "/login": "auth.html", "/signup": "auth.html", "/reset": "reset.html", "/sso": "sso.html",
          "/privacy": "legal.html", "/terms": "legal.html", "/acceptable-use": "legal.html"}
 VIDEO_TYPES = {".mp4", ".mov", ".mkv", ".webm", ".m4v", ".ts", ".flv"}
 CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
@@ -289,8 +289,37 @@ def _page(name, shared=False):
 _LANDING: dict = {}
 
 
+SITE = os.environ.get("CLIPHEIST_SITE", "https://clipheist.site").rstrip("/")
+
+
+def _site_login() -> bool:
+    """Sign-in happens once, on the website. The app's own sign-in page is only kept for ?direct=1 (admins)."""
+    return config.ACCOUNTS and auth_mod_ready()
+
+
+def auth_mod_ready() -> bool:
+    return bool(os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_SECRET_KEY"))
+
+
+@app.get("/sso")
+def sso_page():
+    return _page("sso.html", shared=True)
+
+
+@app.post("/api/auth/supabase")
+def supabase_login(request: Request, body: dict = Body(...)):
+    try:
+        auth.throttle("sso:" + _ip(request), 40, 600)
+        user, first = auth.supabase_finish(str(body.get("access_token", ""))[:4000])
+    except auth.AuthError as e:
+        raise HTTPException(401, str(e))
+    return _signed_in(request, user, first)
+
+
 @app.get("/")
-def landing():
+def landing(request: Request):
+    if _site_login():      # the website is the front page; the app's address goes straight into the app
+        return RedirectResponse("/app" if _me(request) else SITE + "/start", 303)
     f = WEB / "landing.html"
     m = f.stat().st_mtime
     if _LANDING.get("m") != m:
@@ -321,7 +350,9 @@ def sitemap():
 
 @app.get("/login")
 @app.get("/signup")
-def auth_page():
+def auth_page(request: Request, direct: str = "", error: str = ""):
+    if _site_login() and not direct and not error:
+        return RedirectResponse(SITE + "/start", 303)
     return _page("auth.html", shared=True)
 
 

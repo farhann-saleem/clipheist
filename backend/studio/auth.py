@@ -3,6 +3,7 @@ import collections
 import hashlib
 import hmac
 import re
+import os
 import secrets
 import threading
 import time
@@ -393,6 +394,47 @@ def google_finish(code: str, state: str):
     u, first = _create(email, info.get("name") or "", google_sub=info["sub"])
     save_photo(u.id, pic)
     return u, first, st[1]
+
+
+def supabase_finish(access_token: str):
+    """One sign-in for ClipHeist: the website (clipheist.site) signs people in with Google through Supabase and
+    hands its access token to the app, which checks it with Supabase and opens a session for the same email.
+    Returns (user, is_first_user)."""
+    url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    key = os.environ.get("SUPABASE_SECRET_KEY", "")
+    if not url or not key or not access_token:
+        raise AuthError("Sign-in through clipheist.site is not set up.")
+    r = httpx.get(url + "/auth/v1/user", timeout=15, headers={"apikey": key, "Authorization": f"Bearer {access_token}"})
+    if r.status_code != 200:
+        raise AuthError("That sign-in has expired. Sign in again.")
+    info = r.json()
+    email = str(info.get("email") or "").lower()
+    if not email or not (info.get("email_confirmed_at") or info.get("confirmed_at")):
+        raise AuthError("Your email address is not confirmed yet.")
+    meta = info.get("user_metadata") or {}
+    google = next((i for i in info.get("identities") or [] if i.get("provider") == "google"), None)
+    sub = str((google or {}).get("identity_data", {}).get("sub") or (google or {}).get("id") or "") or None
+    name, pic = meta.get("full_name") or meta.get("name") or "", meta.get("avatar_url") or meta.get("picture") or ""
+    with db.engine.begin() as c:
+        cond = db.users.c.email == email if not sub else sa.or_(db.users.c.google_sub == sub, db.users.c.email == email)
+        u = c.execute(sa.select(db.users).where(cond)).first()
+        if u and not u.google_sub and sub:
+            # same rule as a Google sign-in: a password set without proving the email is dropped
+            c.execute(db.users.update().where(db.users.c.id == u.id).values(google_sub=sub, password_hash=None))
+            c.execute(db.sessions.delete().where(db.sessions.c.user_id == u.id))
+    if u:
+        forget(u.id)
+        if u.disabled:
+            raise AuthError("This account has been disabled.")
+        mark_verified(u.id)
+        if pic:
+            save_photo(u.id, pic)
+        return get_user(u.id), False
+    u, first = _create(email, name, google_sub=sub)
+    mark_verified(u.id)
+    if pic:
+        save_photo(u.id, pic)
+    return u, first
 
 
 PHOTO_TYPES = {b"\xff\xd8\xff": "image/jpeg", b"\x89PNG": "image/png", b"RIFF": "image/webp"}

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { CountdownBoxes } from './Countdown.jsx';
-import { useAuth, PLAN_NAMES, clipsLeft } from './AuthContext.jsx';
+import { CountdownBoxes, DEAL_ENDS } from './Countdown.jsx';
+import { goToApp, useAuth, PLAN_NAMES, clipsLeft } from './AuthContext.jsx';
 
 const GoogleG = () => (
   <svg viewBox="0 0 18 18" aria-hidden="true" className="g-logo">
@@ -15,6 +15,18 @@ const GoogleG = () => (
 function StartBlock() {
   const auth = useAuth();
   const p = auth?.profile;
+  if (auth?.user) {
+    return (
+      <div className="form-block">
+        <button type="button" className="button google-button" onClick={() => goToApp()}>
+          <div className="button-text-holder"><div className="button-text">Open the clipping app ↗</div><div className="button-text">Open the clipping app ↗</div></div>
+        </button>
+        <p className="form-hint">{p
+          ? <>You have <b>{clipsLeft(p)}</b> clips left on your <b>{PLAN_NAMES[p.plan]}</b> plan. Paste a stream link and go.</>
+          : <>You're signed in. Paste a stream link and get vertical clips back.</>}</p>
+      </div>
+    );
+  }
   return (
     <div className="form-block">
       <a href="https://app.clipheist.site" className="button google-button js-to-waitlist">
@@ -43,7 +55,8 @@ export default function Footer({ base = '' }) {
                 <p className="lead">Turn your GTA 6 streams into captioned vertical clips. Launch price 40% off until Sunday.</p>
                 <StartBlock />
                 <div className="footer-perks"><span>3 free clips</span><span>No subscription</span><span>48-hour refund</span></div>
-                <CountdownBoxes className="footer-count" label="Time until GTA 6 launch" />
+                <div className="title-small footer-count-label">Launch price ends in</div>
+                <CountdownBoxes target={DEAL_ENDS} className="footer-count" label="Launch price ends in" />
               </div>
               <div>
                 <div className="footer-content">

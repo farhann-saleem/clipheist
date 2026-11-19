@@ -315,7 +315,8 @@ p{ margin:0 0 16px; color:#141414; }
 .signed-up .success-message{ display:block; }
 .footer-perks{ display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; }
 .footer-perks span{ border:1px solid #3a3a3a; border-radius:var(--pill); padding:8px 14px; font-size:13px; color:#ddd; }
-.footer-count{ margin-top:36px; display:flex; gap:12px; }
+.footer-count-label{ margin-top:36px; margin-bottom:12px; }
+.footer-count{ display:flex; gap:12px; }
 .footer-count div{ background:#1f1f1f; border-radius:12px; padding:14px 16px; min-width:78px; }
 .footer-count b{ display:block; font-family:var(--font-heading); font-size:var(--h5); font-weight:600; font-variant-numeric:tabular-nums; line-height:1.1; }
 .footer-count span{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:#9a9a9a; }

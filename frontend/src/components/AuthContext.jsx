@@ -9,6 +9,14 @@ const AFTER_LOGIN = 'ch-after-login';
 const TO_APP = 'ch-to-app';
 export const APP_HOME = 'https://app.clipheist.site';
 
+// Into the clipping app, signed in: the app checks this Supabase session and opens its own, so nobody signs in twice.
+// The token travels in the #fragment, which browsers never send to any server or log.
+export async function goToApp(next = '/app') {
+  let token = '';
+  try { token = (await supabase?.auth.getSession())?.data?.session?.access_token || ''; } catch { /* no session */ }
+  window.location.href = token ? `${APP_HOME}/sso#t=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}` : APP_HOME;
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -30,6 +38,14 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!supabase) return undefined;
     let alive = true;
+    // Signed out in the app: sign out here too, so the two never disagree.
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('signout')) {
+      params.delete('signout');
+      window.history.replaceState(null, '', window.location.pathname + (params.toString() ? `?${params}` : '') + window.location.hash);
+      supabase.auth.signOut().finally(() => { if (alive) { setSession(null); setProfile(null); setReady(true); } });
+      return () => { alive = false; };
+    }
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return;
       setSession(data.session); setReady(true); loadProfile(data.session);
@@ -54,7 +70,7 @@ export function AuthProvider({ children }) {
       y = sessionStorage.getItem(AFTER_LOGIN); sessionStorage.removeItem(AFTER_LOGIN);
       go = sessionStorage.getItem(TO_APP) === '1'; sessionStorage.removeItem(TO_APP);
     } catch { /* storage blocked */ }
-    if (go) { window.location.href = APP_HOME; return; }
+    if (go) { goToApp(); return; }
     if (y !== null && Number(y) > 0) setTimeout(() => window.scrollTo({ top: Number(y), behavior: 'instant' }), 500);
   }, [session]);
 

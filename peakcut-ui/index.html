@@ -2290,7 +2290,7 @@ document.addEventListener("click", async e => {
       const c = jobOf(d.j).clips.find(x => x.id === d.c);
       await navigator.clipboard.writeText(`${c.title}\n\n${c.description}\n\n${(c.hashtags || []).map(h => "#" + h).join(" ")}`); return toast("Post text copied", "ok");
     }
-    if (a === "logout") { await api("/api/auth/logout", {method:"POST"}); location.href = "/"; return; }
+    if (a === "logout") { await api("/api/auth/logout", {method:"POST"}); location.href = "https://clipheist.site/?signout=1"; return; }
     if (a === "pwsave") {
       await send("/api/auth/password", {current:$("#pw_cur")?.value || "", new:$("#pw_new").value});
       toast("Password changed. Other devices were signed out.", "ok"); return drawSettings();

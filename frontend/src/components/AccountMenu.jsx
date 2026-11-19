@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth, PLAN_NAMES, clipsLeft } from './AuthContext.jsx';
+import { goToApp, useAuth, PLAN_NAMES, clipsLeft } from './AuthContext.jsx';
 
 // Navbar account control. Signed out: "Sign in" (Google) + the yellow "Start clipping" button.
 // Signed in: a chip with plan and clips left; clicking it opens a small menu with the email and "Sign out".
@@ -40,6 +40,11 @@ export default function AccountMenu() {
     : <span className={`account-avatar ${size}`} aria-hidden="true">{initials.charAt(0)}{size === 'big' ? initials.charAt(1) : ''}</span>);
 
   return (
+    <>
+    <div className="nav-link-wrapper">
+      <button type="button" className="nav-link nav-signin nav-app" onClick={() => goToApp()}>Open app ↗</button>
+      <div className="nav-line"></div>
+    </div>
     <div className="nav-link-wrapper account" ref={box}>
       <button type="button" className="nav-cta nav-cta-in account-chip" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Avatar size="small" />
@@ -58,12 +63,13 @@ export default function AccountMenu() {
           <Link to="/pricing" role="menuitem" className="account-item" onClick={() => setOpen(false)}>
             {p && p.plan !== 'free' ? 'Upgrade or add clips' : 'Get a plan'}
           </Link>
-          <div className="account-item muted" role="menuitem" aria-disabled="true">Clipping app <small>opens 19 Nov</small></div>
+          <button type="button" role="menuitem" className="account-item" onClick={() => { setOpen(false); goToApp(); }}>Open the clipping app ↗</button>
           <div className="account-divider" />
           <button type="button" role="menuitem" className="account-item" onClick={() => { setOpen(false); auth.signOut(); }}>Sign out</button>
           <div className="account-foot">© 2026 ClipHeist · <Link to="/pricing" onClick={() => setOpen(false)}>Pricing</Link></div>
         </div>
       )}
     </div>
+    </>
   );
 }

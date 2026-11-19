@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthContext.jsx';
+import { goToApp, useAuth } from './AuthContext.jsx';
 
 // In-page links (#about, #how, ...) scroll smoothly.
 // "Start clipping" links (.js-to-waitlist) open the clipping app, after Google sign-in if needed.
@@ -20,7 +20,7 @@ export default function useSmoothAnchors() {
         e.preventDefault();
         const { auth: au } = ref.current;
         // Signed in: straight to the app. Not yet: Google sign-in first (creates the profile with 3 free clips).
-        if (!au?.enabled || au.user) window.location.href = APP_URL;
+        if (!au?.enabled || au.user) goToApp();
         else au.signIn({ toApp: true });
         return;
       }

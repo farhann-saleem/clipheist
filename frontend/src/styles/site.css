@@ -95,3 +95,4 @@
 .pr-step-spots{ font-size:13px; }
 .pr-step strong{ display:block; font-family:var(--font-heading); font-size:var(--h6); line-height:1.25; }
 .pr-step p{ margin:6px 0 0; color:#141414; font-size:15px; }
+button.google-button{ font:inherit; cursor:pointer; }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { renderGoogleButton } from '../lib/google.js';
-import { APP_HOME, useAuth } from './AuthContext.jsx';
+import { goToApp, useAuth } from './AuthContext.jsx';
 import useSpots from './useSpots.js';
 
 // Sign in with Google (popup, no redirect). Signing in creates the profile with 3 free clips.
@@ -26,7 +26,7 @@ export default function JoinModal({ onClose, toApp = false }) {
       width: Math.min(340, btn.current.clientWidth || 340),
       onSignedIn: () => {
         onClose();
-        if (toApp) window.location.href = APP_HOME;
+        if (toApp) goToApp();
         else navigate('/pricing?step=plan');
       },
       onError: () => setError('Google sign-in did not finish. Please try again.'),
@@ -43,7 +43,7 @@ export default function JoinModal({ onClose, toApp = false }) {
         <div className="jm-steps"><span className="on">1 · Sign in</span><span>{toApp ? '2 · Paste a stream link' : '2 · Pick your plan'}</span></div>
         <h2 id="jm-title">{toApp ? 'Sign in to start clipping.' : 'Get in before GTA 6 drops.'}</h2>
         <p className="jm-lead">{toApp
-          ? 'Your first 3 clips are free, no card needed. Use this same Google account in the app.'
+          ? 'Your first 3 clips are free, no card needed. One sign-in and you go straight to your clips.'
           : 'Sign in with Google, then pay once at the 40% launch price. No subscription.'}</p>
 
         <div className="jm-spots" aria-live="polite">
